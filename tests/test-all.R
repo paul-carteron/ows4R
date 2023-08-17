@@ -1,6 +1,7 @@
 library(testthat)
 library(httr)
 library(httr2)
+library(xml2)
 
 runIntegrationTests <- class(try(httr::GET("http://localhost:8000/csw"))) != "try-error"
 if(runIntegrationTests){
