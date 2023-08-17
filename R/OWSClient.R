@@ -3,6 +3,7 @@
 #' @docType class
 #' @import methods
 #' @importFrom R6 R6Class
+#' @import httr2
 #' @import httr
 #' @import openssl
 #' @import XML
