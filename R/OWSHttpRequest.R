@@ -5,7 +5,9 @@
 #' @keywords OGC OWS HTTP Request
 #' @return Object of \code{\link{R6Class}} for modelling a generic OWS http request
 #' @format \code{\link{R6Class}} object.
-#' 
+#' @importFrom httr2 req_headers req_options req_perform req_url_query request
+#' resp_body_json resp_body_string resp_body_xml resp_headers resp_status with_verbosity
+#'  
 #' @note Abstract class used internally by \pkg{ows4R}
 #' 
 #' @author Emmanuel Blondel <emmanuel.blondel1@@gmail.com>
@@ -124,7 +126,7 @@ OWSHttpRequest <- R6Class("OWSHttpRequest",
         responseContent <- resp_body_string(r, encoding = "UTF-8")
       }else{
         if(grepl("xml", mimeType) > 0){
-          responseContent <- resp_body_xml(r) |> xmlParse()
+          responseContent <- httr2::resp_body_xml(r) |> xmlParse()
         }else if (grepl("json", mimeType)){
           responseContent <- resp_body_json(r)
         }else{
