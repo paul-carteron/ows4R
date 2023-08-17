@@ -36,8 +36,7 @@ OWSHttpRequest <- R6Class("OWSHttpRequest",
     config = NULL,
     auth_scheme = NULL,
 
-    #GET
-    #---------------------------------------------------------------
+    # GET --------------------------------------------------------------
     GET = function(url, request, namedParams, mimeType){
       namedParams <- c(namedParams, request = request)
       params <- paste(names(namedParams), namedParams, sep = "=", collapse = "&")
@@ -46,13 +45,13 @@ OWSHttpRequest <- R6Class("OWSHttpRequest",
       if(regexpr("/cas?service=", url, fixed = T) > 0) params <- URLencode(params, reserved = TRUE)
       req <- paste0(req, params)
       self$INFO(sprintf("Fetching %s", req))
-      
+
       #headers
       headers <- private$headers
       if(!is.null(private$token)){
         headers <- c(headers, "Authorization" = paste(private$auth_scheme, private$token))
       }
-      
+
       r <- NULL
       if(self$verbose.debug){
         r <- with_verbose(GET(req, add_headers(headers), set_config(private$config)), progress())
@@ -79,9 +78,66 @@ OWSHttpRequest <- R6Class("OWSHttpRequest",
                        status = status_code(r), response = responseContent)
       return(response)
     },
-    
-    #POST
-    #---------------------------------------------------------------    
+
+    # GET_httr2 ---------------------------------------------------------------
+    GET_httr2 = function(url, request, namedParams, mimeType){
+      
+      # param
+      namedParams <- c(namedParams, request = request)
+      
+      # Part below can be removed because :
+      # - "?" is automatically added with httr2 at the end of base url
+      # - url is automatically encode
+      
+      # if(!endsWith(url,"?") && nzchar(params)) req <- paste0(req, "?")
+      # if(regexpr("/cas?service=", url, fixed = T) > 0) params <- URLencode(params, reserved = TRUE)
+      # req <- paste0(req, params)
+      
+      # headers
+      headers <- private$headers
+      if(!is.null(private$token)){
+        headers <- c(headers, "Authorization" = paste(private$auth_scheme, private$token))
+      }
+      
+      if (!is.null(mimeType)){
+        headers <- c(headers, "content-type" = mimeType)
+      }
+      
+      req <- request(url) |> 
+        req_url_query(!!!namedParams) |> 
+        req_headers(!!!headers) |> 
+        req_options(!!!private$config)
+      
+      self$INFO(sprintf("Fetching %s", req$url))
+      
+      r <- NULL
+      if(self$verbose.debug){
+        r <- with_verbosity(req_perform(req), verbosity = 3)
+      }else if(self$verbose.info){
+        r <- req_perform(req) #|> req_progress() will be added in next httr2::version
+      }else{
+        r <- req_perform(req)
+      }
+      
+      responseContent <- NULL
+      if(is.null(mimeType)){
+        responseContent <- resp_body_string(r, encoding = "UTF-8")
+      }else{
+        if(grepl("xml", mimeType) > 0){
+          responseContent <- resp_body_xml(r) |> xmlParse()
+        }else if (grepl("json", mimeType)){
+          responseContent <- resp_body_json(r)
+        }else{
+          responseContent <- resp_body_string(r, encoding = "UTF-8")
+        }
+      }
+      
+      response <- list(request = request, requestHeaders = httr2::resp_headers(r),
+                       status = httr2::resp_status(r), response = responseContent)
+      return(response)
+    }
+    ,
+    # POST ---------------------------------------------------------------    
     POST = function(url, contentType = "text/xml", mimeType = "text/xml"){
       
       #vendor params
@@ -136,7 +192,7 @@ OWSHttpRequest <- R6Class("OWSHttpRequest",
       return(response)
     }
   ),
-  #public methods
+  # public methods ---------------------------------------------------------------
   public = list(
     
     #'@description Initializes an OWS HTTP request
@@ -217,7 +273,7 @@ OWSHttpRequest <- R6Class("OWSHttpRequest",
     execute = function(){
       
       req <- switch(private$type,
-                    "GET" = private$GET(private$url, private$request, private$namedParams, private$mimeType),
+                    "GET" = private$GET_httr2(private$url, private$request, private$namedParams, private$mimeType),
                     "POST" = private$POST(private$url, private$contentType, private$mimeType)
       )
       
